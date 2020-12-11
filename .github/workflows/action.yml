@@ -6,7 +6,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '50 0 * * *'
+    - cron: '28 4 */2 * *'
 
 jobs:
   auto_renew:
@@ -29,4 +29,5 @@ jobs:
         env:
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
+          SCKEY: ${{ secrets.SCKEY }}
         run: python main.py

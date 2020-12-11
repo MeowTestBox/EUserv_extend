@@ -3,9 +3,11 @@ import json
 import time
 import requests
 from bs4 import BeautifulSoup
+from base64 import b64decode
 
 USERNAME = os.environ["USERNAME"]
 PASSWORD = os.environ["PASSWORD"]
+SCKEY = os.environ["SCKEY"]
 PROXIES = {
     "http": "http://127.0.0.1:10809",
     "https": "http://127.0.0.1:10809"
@@ -14,8 +16,7 @@ PROXIES = {
 
 def login(username, password) -> (str, requests.session):
     headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/83.0.4103.116 Safari/537.36",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
         "origin": "https://www.euserv.com"
     }
     login_data = {
@@ -40,8 +41,7 @@ def get_servers(sess_id, session) -> {}:
     d = {}
     url = "https://support.euserv.com/index.iphp?sess_id=" + sess_id
     headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/83.0.4103.116 Safari/537.36",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
         "origin": "https://www.euserv.com"
     }
     f = session.get(url=url, headers=headers)
@@ -52,7 +52,7 @@ def get_servers(sess_id, session) -> {}:
         if not len(server_id) == 1:
             continue
         flag = True if tr.select('.td-z1-sp2-kc .kc2_order_action_container')[
-                           0].get_text().find('Contract extension possible from') == -1 else False
+            0].get_text().find('Contract extension possible from') == -1 else False
         d[server_id[0].get_text()] = flag
     return d
 
@@ -60,8 +60,7 @@ def get_servers(sess_id, session) -> {}:
 def renew(sess_id, session, password, order_id) -> bool:
     url = "https://support.euserv.com/index.iphp"
     headers = {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/83.0.4103.116 Safari/537.36",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
         "Host": "support.euserv.com",
         "origin": "https://support.euserv.com",
         "Referer": "https://support.euserv.com/index.iphp"
@@ -103,9 +102,21 @@ def check(sess_id, session):
     for key, val in d.items():
         if val:
             flag = False
-            print("ServerID: %s Renew Failed!" % key)
+            print("ServerID: %s Renew Failed!" % key[:3])
     if flag:
-        print("ALL Work Done! Enjoy")
+        print("ALL Work Done! Enjoy!")
+
+
+def WeChat_push(text, desp):
+    sckey = b64decode(SCKEY).decode()
+    ft_URL = r"https://sc.ftqq.com/{}.send".format(sckey)
+    payload = {
+        "text": text,
+        "desp": desp
+    }
+    r = requests.post(ft_URL, data=payload)
+    print(r.text)
+    return r
 
 
 if __name__ == "__main__":
@@ -129,11 +140,17 @@ if __name__ == "__main__":
         for k, v in SERVERS.items():
             if v:
                 if not renew(sessid, s, passwd_list[i], k):
-                    print("ServerID: %s Renew Error!" % k)
+                    print("ServerID: %s Renew Error!" % k[:3])
+                    WeChat_push('[EUServ] Renew Error!',
+                                "ServerID: %s Renew Error!" % k[:3])
                 else:
-                    print("ServerID: %s has been successfully renewed!" % k)
+                    print("ServerID: %s has been successfully renewed!" %
+                          k[:3])
+                    WeChat_push('[EUServ] Renew OK!',
+                                "ServerID: %s has been successfully renewed!" % k[:3])
+
             else:
-                print("ServerID: %s does not need to be renewed" % k)
+                print("ServerID: %s does not need to be renewed" % k[:3])
         time.sleep(15)
         check(sessid, s)
         time.sleep(5)
