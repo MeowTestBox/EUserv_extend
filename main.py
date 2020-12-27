@@ -14,6 +14,20 @@ PROXIES = {
 }
 
 
+def retry_request(session, method, url, headers, data=""):
+    cnt = 1
+    while cnt <= 5:
+        try:
+            print("[INFO] retry cnt:", cnt)
+            r = session.request(method, url, headers=headers,
+                                data=data, timeout=15)
+            return r
+        except Exception as e:
+            print("[ERROR] ", e)
+            cnt += 1
+    raise Exception("Request ERROR!!!")
+
+
 def login(username, password) -> (str, requests.session):
     headers = {
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
@@ -28,7 +42,7 @@ def login(username, password) -> (str, requests.session):
     }
     url = "https://support.euserv.com/index.iphp"
     session = requests.Session()
-    f = session.post(url, headers=headers, data=login_data)
+    f = retry_request(session, 'POST', url, headers=headers, data=login_data)
     f.raise_for_status()
     if f.text.find('Hello') == -1:
         return '-1', session
@@ -44,7 +58,7 @@ def get_servers(sess_id, session) -> {}:
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
         "origin": "https://www.euserv.com"
     }
-    f = session.get(url=url, headers=headers)
+    f = retry_request(session, 'GET', url=url, headers=headers)
     f.raise_for_status()
     soup = BeautifulSoup(f.text, 'html.parser')
     for tr in soup.select('#kc2_order_customer_orders_tab_content_1 .kc2_order_table.kc2_content_table tr'):
@@ -72,14 +86,14 @@ def renew(sess_id, session, password, order_id) -> bool:
         "subaction": "choose_order",
         "choose_order_subaction": "show_contract_details"
     }
-    session.post(url, headers=headers, data=data)
+    retry_request(session, 'POST', url, headers=headers, data=data)
     data = {
         "sess_id": sess_id,
         "subaction": "kc2_security_password_get_token",
         "prefix": "kc2_customer_contract_details_extend_contract_",
         "password": password
     }
-    f = session.post(url, headers=headers, data=data)
+    f = retry_request(session, 'POST', url, headers=headers, data=data)
     f.raise_for_status()
     if not json.loads(f.text)["rs"] == "success":
         return False
@@ -90,7 +104,7 @@ def renew(sess_id, session, password, order_id) -> bool:
         "subaction": "kc2_customer_contract_details_extend_contract_term",
         "token": token
     }
-    session.post(url, headers=headers, data=data)
+    retry_request(session, 'POST', url, headers=headers, data=data)
     time.sleep(5)
     return True
 
